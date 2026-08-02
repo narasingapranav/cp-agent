@@ -87,6 +87,7 @@ class Application:
         self.leetcode = LeetCodeService(
             username=settings.leetcode_username,
             enabled=settings.leetcode_enabled,
+            session_cookie=settings.leetcode_session,
             max_retries=settings.max_retries,
             backoff_seconds=settings.retry_backoff_seconds,
         )
@@ -108,7 +109,10 @@ class Application:
             database=self.database,
             leetcode=self.leetcode if settings.leetcode_enabled else None,
         )
-        self.matching_agent = MatchingAgent(filesystem=self.filesystem)
+        self.matching_agent = MatchingAgent(
+            filesystem=self.filesystem,
+            leetcode=self.leetcode if settings.leetcode_enabled else None,
+        )
         self.documentation_agent = DocumentationAgent(
             prompts_dir=settings.prompts_dir,
             openai_api_key=settings.openai_api_key,

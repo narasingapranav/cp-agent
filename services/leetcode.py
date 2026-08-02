@@ -1,15 +1,15 @@
 """
-LeetCode service (future support).
+LeetCode service.
 
 LeetCode does not expose a stable public API for submission history the way
-Codeforces does; reliable access typically requires an authenticated
-GraphQL session cookie. This module defines the same interface as
-`CodeforcesService` (`fetch_recent_submissions`) so it can be dropped into
-the Submission Agent / orchestrator once implemented, without touching any
-other layer.
+Codeforces does. `fetch_recent_submissions` uses the public, unauthenticated
+`recentAcSubmissionList` query (title/slug/timestamp only -- no source code).
 
-For now it is a documented, safely-disabled stub: it never makes network
-calls unless explicitly enabled, and returns an empty list otherwise.
+To retrieve the actual submitted *code* (so a local solution file is never
+required), `fetch_submission_code` uses the authenticated `submissionDetails`
+query, which requires a logged-in session cookie (`LEETCODE_SESSION`). This
+is the only way to get source code out of LeetCode outside of the browser;
+there is no public API for it.
 """
 
 from __future__ import annotations
@@ -27,8 +27,36 @@ class LeetCodeAPIError(RuntimeError):
     """Raised when the LeetCode GraphQL endpoint returns an unexpected payload."""
 
 
+# Best-effort mapping from LeetCode's `lang`/`langName` values to file extensions.
+_LANG_TO_EXTENSION = {
+    "python": ".py",
+    "python3": ".py",
+    "cpp": ".cpp",
+    "c++": ".cpp",
+    "java": ".java",
+    "c": ".c",
+    "csharp": ".cs",
+    "c#": ".cs",
+    "javascript": ".js",
+    "typescript": ".ts",
+    "golang": ".go",
+    "go": ".go",
+    "kotlin": ".kt",
+    "swift": ".swift",
+    "rust": ".rs",
+    "ruby": ".rb",
+    "scala": ".scala",
+    "php": ".php",
+}
+
+
+def extension_for_lang(lang: str) -> str:
+    """Best-effort file extension for a LeetCode `lang` string. Defaults to `.txt`."""
+    return _LANG_TO_EXTENSION.get((lang or "").strip().lower(), ".txt")
+
+
 class LeetCodeService:
-    """Stub client for LeetCode accepted-submission polling.
+    """Client for LeetCode accepted-submission polling and code retrieval.
 
     Parameters
     ----------
@@ -39,6 +67,11 @@ class LeetCodeService:
         short-circuits and returns `[]` without any network activity. This
         lets the orchestrator always call this service uniformly, and turn
         it on later purely via configuration (`LEETCODE_ENABLED=true`).
+    session_cookie:
+        Value of the `LEETCODE_SESSION` cookie from a logged-in browser
+        session. Required only for `fetch_submission_code`; the recent-AC
+        polling above works without it. Keep this secret -- it is
+        equivalent to your LeetCode login.
     """
 
     GRAPHQL_URL = "https://leetcode.com/graphql"
@@ -47,6 +80,7 @@ class LeetCodeService:
         self,
         username: str = "",
         enabled: bool = False,
+        session_cookie: str = "",
         max_retries: int = 3,
         backoff_seconds: float = 2.0,
         timeout_seconds: float = 15.0,
@@ -54,6 +88,7 @@ class LeetCodeService:
     ) -> None:
         self.username = username
         self.enabled = enabled and bool(username)
+        self.session_cookie = session_cookie
         self.timeout_seconds = timeout_seconds
         self._max_retries = max_retries
         self._backoff_seconds = backoff_seconds
@@ -123,3 +158,66 @@ class LeetCodeService:
                 )
             )
         return submissions
+
+    def fetch_submission_code(self, submission_id: str) -> tuple[str, str]:
+        """Fetch the actual source code for an accepted submission.
+
+        Requires `session_cookie` (`LEETCODE_SESSION`) to be set -- LeetCode
+        only exposes submission source to the authenticated owner of that
+        submission, there is no public equivalent.
+
+        Returns
+        -------
+        (code, lang) : tuple[str, str]
+            The submitted source code and LeetCode's raw language string
+            (e.g. `"python3"`, `"cpp"`), suitable for `extension_for_lang`.
+
+        Raises
+        ------
+        LeetCodeAPIError
+            If no session cookie is configured, or the API call fails / the
+            response doesn't contain a `code` field (e.g. expired cookie).
+        """
+        if not self.session_cookie:
+            raise LeetCodeAPIError(
+                "LEETCODE_SESSION is not configured; cannot fetch submission code. "
+                "Set LEETCODE_SESSION in .env (from your browser's leetcode.com cookies)."
+            )
+
+        query = {
+            "query": (
+                "query submissionDetails($submissionId: Int!) {"
+                "  submissionDetails(submissionId: $submissionId) {"
+                "    code lang { name } "
+                "  }"
+                "}"
+            ),
+            "variables": {"submissionId": int(submission_id)},
+        }
+        cookies = {"LEETCODE_SESSION": self.session_cookie}
+        headers = {"Referer": "https://leetcode.com", "Content-Type": "application/json"}
+
+        @self._retrying()
+        def _do_request() -> dict[str, Any]:
+            response = self.session.post(
+                self.GRAPHQL_URL,
+                json=query,
+                cookies=cookies,
+                headers=headers,
+                timeout=self.timeout_seconds,
+            )
+            response.raise_for_status()
+            payload = response.json()
+            if "errors" in payload:
+                raise LeetCodeAPIError(str(payload["errors"]))
+            return payload
+
+        payload = _do_request()
+        details = payload.get("data", {}).get("submissionDetails")
+        if not details or not details.get("code"):
+            raise LeetCodeAPIError(
+                f"submissionDetails returned no code for submission {submission_id} "
+                "-- session cookie may be expired or invalid."
+            )
+        lang = (details.get("lang") or {}).get("name", "")
+        return details["code"], lang

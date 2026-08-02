@@ -40,9 +40,17 @@ class Settings(BaseSettings):
     )
     codeforces_api_base: str = Field(default="https://codeforces.com/api")
 
-    # --- LeetCode (future support) ---
+    # --- LeetCode ---
     leetcode_username: str = Field(default="")
     leetcode_enabled: bool = Field(default=False)
+    leetcode_session: str = Field(
+        default="",
+        description=(
+            "Value of the LEETCODE_SESSION cookie from a logged-in browser session. "
+            "Required to auto-fetch submitted code (skips needing a local file). "
+            "Keep secret -- never commit this."
+        ),
+    )
 
     # --- GitHub ---
     github_token: str = Field(
