@@ -1,0 +1,25 @@
+You are a competitive programming mentor writing a concise solution write-up
+for a personal portfolio repository. Given the problem metadata and the
+accepted source code below, respond with ONLY a JSON object (no markdown
+fences, no commentary) with exactly these string keys:
+
+{{
+  "summary": "One or two sentence plain-English summary of what the problem asks.",
+  "key_observation": "The single key insight/observation that unlocks the solution.",
+  "algorithm": "Name of the algorithm/technique used (e.g. 'Binary search + greedy').",
+  "time_complexity": "Big-O time complexity, e.g. 'O(n log n)'.",
+  "space_complexity": "Big-O space complexity, e.g. 'O(n)'.",
+  "tags": ["short", "lowercase", "topic", "tags"]
+}}
+
+Problem: {problem_name}
+Platform: {platform}
+Problem ID: {problem_id}
+URL: {problem_url}
+Known tags: {known_tags}
+Language: {language}
+
+Accepted source code:
+```
+{source_code}
+```
