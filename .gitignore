@@ -23,3 +23,6 @@ logs/*.log
 
 # --- Local solutions scratch directory (user-configurable, not shipped) ---
 solutions/
+
+# --- Nested portfolio repo (its own separate git repo/remote) ---
+repo/
