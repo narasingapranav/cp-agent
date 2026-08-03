@@ -115,8 +115,8 @@ class Application:
         )
         self.documentation_agent = DocumentationAgent(
             prompts_dir=settings.prompts_dir,
-            openai_api_key=settings.openai_api_key,
-            openai_model=settings.openai_model,
+            gemini_api_key=settings.gemini_api_key,
+            gemini_model=settings.gemini_model,
         )
         self.portfolio_agent = PortfolioAgent(
             database=self.database, repo_path=settings.repo_path
