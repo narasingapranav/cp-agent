@@ -100,7 +100,7 @@ class DocumentationAgent:
 
     prompts_dir: Path
     gemini_api_key: str = ""
-    gemini_model: str = "gemini-2.5-flash"
+    gemini_model: str = "gemini-3.6-flash"
     max_embedded_code_chars: int = 4000
 
     def generate(self, matched: MatchedSolution) -> GeneratedDocumentation:
@@ -196,7 +196,10 @@ class DocumentationAgent:
             model=self.gemini_model,
             contents=prompt,
             config=types.GenerateContentConfig(
-                temperature=0.2,
+                system_instruction=(
+                    "Respond deterministically and consistently. Output ONLY the "
+                    "requested JSON object -- no markdown fences, no commentary."
+                ),
                 response_mime_type="application/json",
             ),
         )

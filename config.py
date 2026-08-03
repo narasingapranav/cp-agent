@@ -61,7 +61,7 @@ class Settings(BaseSettings):
 
     # --- Gemini (documentation generation) ---
     gemini_api_key: str = Field(default="")
-    gemini_model: str = Field(default="gemini-2.5-flash")
+    gemini_model: str = Field(default="gemini-3.6-flash")
 
     # --- Local paths ---
     local_solutions_dir: Path = Field(
