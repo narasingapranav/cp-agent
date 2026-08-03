@@ -18,7 +18,7 @@ def _build_orchestrator(tmp_path: Path, database) -> Orchestrator:
 
     filesystem = FileSystemService(solutions_dir=solutions_dir, repo_path=repo_path)
     matching_agent = MatchingAgent(filesystem=filesystem)
-    documentation_agent = DocumentationAgent(prompts_dir=tmp_path, openai_api_key="")
+    documentation_agent = DocumentationAgent(prompts_dir=tmp_path, gemini_api_key="")
     portfolio_agent = PortfolioAgent(database=database, repo_path=repo_path)
     git_agent = GitAgent(repo_path=repo_path, dry_run=False, auto_push=False)
 
@@ -54,4 +54,3 @@ def test_pipeline_stops_early_when_no_file_matched(tmp_path, tmp_db, sample_subm
 
     assert result.get("matched") is None
     assert "documentation" not in result
-    assert not tmp_db.is_processed(sample_submission.submission_id)

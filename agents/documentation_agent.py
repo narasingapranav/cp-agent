@@ -2,7 +2,7 @@
 Documentation Agent.
 
 Generates a Markdown write-up (problem summary, key observation, algorithm,
-complexity, tags) for each accepted solution, using an LLM when an OpenAI
+complexity, tags) for each accepted solution, using an LLM when a Gemini
 API key is configured, and falling back to a heuristic offline analysis
 otherwise so the whole pipeline remains runnable with zero paid API access.
 """
@@ -90,18 +90,17 @@ class DocumentationAgent:
     ----------
     prompts_dir:
         Directory containing `documentation_prompt.txt`.
-    openai_api_key:
-        When non-empty, the agent calls the OpenAI Chat Completions API.
-        When empty, `_offline_analysis` is used instead -- this keeps the
-        project fully runnable without any paid API key, per the "future
-        OpenAI integration" requirement (the LLM path is additive, not
+    gemini_api_key:
+        When non-empty, the agent calls the Gemini API. When empty,
+        `_offline_analysis` is used instead -- this keeps the project fully
+        runnable without any paid API key (the LLM path is additive, not
         required). The offline path uses lightweight source-code heuristics
         rather than a bare placeholder, so write-ups stay useful either way.
     """
 
     prompts_dir: Path
-    openai_api_key: str = ""
-    openai_model: str = "gpt-4o-mini"
+    gemini_api_key: str = ""
+    gemini_model: str = "gemini-2.5-flash"
     max_embedded_code_chars: int = 4000
 
     def generate(self, matched: MatchedSolution) -> GeneratedDocumentation:
@@ -164,7 +163,7 @@ class DocumentationAgent:
     # ------------------------------------------------------------------ #
 
     def _analyze(self, matched: MatchedSolution, source_code: str) -> dict:
-        if self.openai_api_key:
+        if self.gemini_api_key:
             try:
                 return self._llm_analysis(matched, source_code)
             except Exception as exc:  # noqa: BLE001 - fall back rather than crash the pipeline
@@ -175,10 +174,11 @@ class DocumentationAgent:
         return self._offline_analysis(matched, source_code)
 
     def _llm_analysis(self, matched: MatchedSolution, source_code: str) -> dict:
-        """Call the OpenAI API to analyze the solution. Requires `openai` package."""
-        from openai import OpenAI  # imported lazily so the dependency is optional at runtime
+        """Call the Gemini API to analyze the solution. Requires `google-genai` package."""
+        from google import genai  # imported lazily so the dependency is optional at runtime
+        from google.genai import types
 
-        client = OpenAI(api_key=self.openai_api_key)
+        client = genai.Client(api_key=self.gemini_api_key)
         prompt_template = (self.prompts_dir / "documentation_prompt.txt").read_text(
             encoding="utf-8"
         )
@@ -192,12 +192,15 @@ class DocumentationAgent:
             source_code=source_code[:6000],  # guard against oversized prompts
         )
 
-        response = client.chat.completions.create(
-            model=self.openai_model,
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.2,
+        response = client.models.generate_content(
+            model=self.gemini_model,
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                temperature=0.2,
+                response_mime_type="application/json",
+            ),
         )
-        content = response.choices[0].message.content or "{}"
+        content = response.text or "{}"
         data = json.loads(content)
 
         return {
@@ -283,7 +286,7 @@ class DocumentationAgent:
         return {
             "summary": f"Accepted solution for {problem_name} on {matched.submission.platform.value}.",
             "key_observation": (
-                "Auto-generated from source-code heuristics (no OPENAI_API_KEY configured) -- "
+                "Auto-generated from source-code heuristics (no GEMINI_API_KEY configured) -- "
                 "set one in .env for LLM-authored insight, or edit this section manually."
             ),
             "algorithm": algorithm,

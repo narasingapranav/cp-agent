@@ -24,8 +24,8 @@ python-dotenv>=1.0.1
 # --- Retry logic ---
 tenacity>=8.5.0
 
-# --- Future: OpenAI integration ---
-openai>=1.35.0
+# --- Gemini integration ---
+google-genai>=1.0.0
 
 # --- Testing ---
 pytest>=8.2.0

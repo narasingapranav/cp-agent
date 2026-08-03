@@ -59,9 +59,9 @@ class Settings(BaseSettings):
     github_username: str = Field(default="")
     github_repo_name: str = Field(default="")
 
-    # --- OpenAI (documentation generation) ---
-    openai_api_key: str = Field(default="")
-    openai_model: str = Field(default="gpt-4o-mini")
+    # --- Gemini (documentation generation) ---
+    gemini_api_key: str = Field(default="")
+    gemini_model: str = Field(default="gemini-2.5-flash")
 
     # --- Local paths ---
     local_solutions_dir: Path = Field(

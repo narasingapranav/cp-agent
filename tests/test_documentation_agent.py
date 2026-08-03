@@ -23,7 +23,7 @@ def test_offline_fallback_generates_markdown_without_api_key(tmp_path, sample_su
     matched.destination_path.parent.mkdir(parents=True, exist_ok=True)
     matched.destination_path.write_text("print('hello')")
 
-    agent = DocumentationAgent(prompts_dir=tmp_path, openai_api_key="")
+    agent = DocumentationAgent(prompts_dir=tmp_path, gemini_api_key="")
     doc = agent.generate(matched)
 
     assert doc.markdown_path.exists()
@@ -36,7 +36,7 @@ def test_offline_fallback_used_when_llm_raises(tmp_path, sample_submission, monk
     matched.destination_path.parent.mkdir(parents=True, exist_ok=True)
     matched.destination_path.write_text("print('hello')")
 
-    agent = DocumentationAgent(prompts_dir=tmp_path, openai_api_key="fake-key")
+    agent = DocumentationAgent(prompts_dir=tmp_path, gemini_api_key="fake-key")
     monkeypatch.setattr(
         agent,
         "_llm_analysis",
