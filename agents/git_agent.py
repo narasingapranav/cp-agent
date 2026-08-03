@@ -102,10 +102,50 @@ class GitAgent:
             branch = "main"
             repo.git.checkout("-b", branch)
 
+        # A rejected push (stale ref, non-fast-forward, remote rejection, etc.)
+        # does NOT raise GitCommandError in GitPython -- it's reported only via
+        # PushInfo flags on the returned result. Relying on "no exception" as a
+        # proxy for success silently swallows real push failures, so we must
+        # inspect the flags explicitly.
+        _FAILURE_FLAGS = (
+            git.PushInfo.ERROR
+            | git.PushInfo.REJECTED
+            | git.PushInfo.REMOTE_REJECTED
+            | git.PushInfo.REMOTE_FAILURE
+        )
+
         try:
-            repo.remotes.origin.push(refspec=f"{branch}:{branch}", set_upstream=True)
-            console.log(f"[green]\u2713 Push successful[/green] ({branch})")
-            return True
+            # Fetch first so our push is based on the latest remote state --
+            # reduces (but doesn't eliminate) spurious rejections when
+            # multiple commits are pushed back-to-back.
+            repo.remotes.origin.fetch()
+            push_infos = repo.remotes.origin.push(refspec=f"{branch}:{branch}", set_upstream=True)
         except git.GitCommandError as exc:
             console.log(f"[red]\u2717 Push failed:[/red] {exc}")
             return False
+
+        errors = [pi for pi in push_infos if pi.flags & _FAILURE_FLAGS]
+        if errors:
+            details = "; ".join(pi.summary.strip() for pi in errors)
+            console.log(f"[red]\u2717 Push rejected:[/red] {details}")
+            # One retry after a fresh fetch handles the common "stale ref"
+            # case (remote moved between our fetch and push).
+            try:
+                repo.remotes.origin.fetch()
+                repo.git.rebase(f"origin/{branch}")
+                retry_infos = repo.remotes.origin.push(
+                    refspec=f"{branch}:{branch}", set_upstream=True
+                )
+                retry_errors = [pi for pi in retry_infos if pi.flags & _FAILURE_FLAGS]
+                if retry_errors:
+                    details = "; ".join(pi.summary.strip() for pi in retry_errors)
+                    console.log(f"[red]\u2717 Push retry also failed:[/red] {details}")
+                    return False
+                console.log(f"[green]\u2713 Push successful on retry[/green] ({branch})")
+                return True
+            except git.GitCommandError as exc:
+                console.log(f"[red]\u2717 Push retry failed:[/red] {exc}")
+                return False
+
+        console.log(f"[green]\u2713 Push successful[/green] ({branch})")
+        return True
