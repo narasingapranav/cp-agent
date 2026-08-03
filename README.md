@@ -47,7 +47,7 @@ per newly-accepted submission:
                            │ yes
                            ▼
                  ┌───────────────────┐
-                 │ Documentation     │  (OpenAI, or offline template)
+                 │ Documentation     │  (Gemini, or offline template)
                  │ Agent             │
                  └─────────┬─────────┘
                            ▼
@@ -123,7 +123,7 @@ CP-Agent/
 ## Installation
 
 **Requirements:** Python 3.11+, git, a Codeforces handle, and (optionally) a
-GitHub personal access token and an OpenAI API key.
+GitHub personal access token and a Gemini API key.
 
 ```bash
 git clone <your-fork-or-this-repo> CP-Agent
@@ -157,7 +157,7 @@ GITHUB_REPO_NAME=competitive-programming
 
 # Optional — enables LLM-generated write-ups. Without this, CP-Agent still
 # runs end-to-end and produces clearly-labeled offline documentation.
-OPENAI_API_KEY=
+GEMINI_API_KEY=
 
 # Where your editor saves solved files, and where the git-managed portfolio lives.
 LOCAL_SOLUTIONS_DIR=./solutions
@@ -331,7 +331,7 @@ disabled-by-default stub with the exact same interface as
   ever reach the graph, so re-running or restarting CP-Agent never produces
   duplicate commits.
 - **Graceful degradation.** A Codeforces outage doesn't block LeetCode (or
-  vice versa) — failures are isolated per-platform. A missing OpenAI key
+  vice versa) — failures are isolated per-platform. A missing Gemini key
   doesn't block documentation — it falls back to a clearly-labeled offline
   template. A missing local file doesn't crash the pipeline — the Matching
   Agent returns `None` and the graph stops early, to be retried next poll.
